@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <script src="./node_modules/jquery/dist/jquery.min.js"></script>
+  <script>if (typeof module === 'object') { window.jQuery = window.$ = module.exports; };</script>
+
+  <link rel="stylesheet" href="./node_modules/mditor/dist/css/mditor.min.css">
+  <script src="./node_modules/mditor/dist/js/mditor.min.js"></script>
+
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+
+    body {
+      display: none;
+    }
+  </style>
+
+</head>
+
+<body>
+
+  <textarea name="editor" id="editor"></textarea>
+
+  <script>
+    const fs = require('fs')
+    const { Menu, MenuItem, dialog } = require('electron').remote
+    let globalPath
+
+    $(function () {
+      // 初始化编辑器
+      var mditor = Mditor.fromTextarea(document.getElementById('editor'));
+
+      // 当 mditor 初始化好之后，隐藏全屏按钮并且设置为全屏显示
+      mditor.on('ready', () => {
+        mditor.fullscreen = true;
+        mditor.toolbar.removeItem('toggleFullScreen')
+        mditor.toolbar.removeItem('help')
+        $('body').fadeIn()
+      })
+
+
+      // 菜单
+      const menu = new Menu()
+      menu.append(new MenuItem({
+        label: 'Save',
+        accelerator: 'CmdOrCtrl+S',
+        click: () => {
+          // 获取编辑器的文本
+          const txt = document.getElementById('editor').value
+          // 如果存在全局的文件路径，则直接保存
+          if (globalPath) {
+            fs.writeFile(globalPath, txt, (err) => {
+              if (err) return console.log('写入文件失败！' + err.message)
+              console.log('保存成功！')
+            })
+          } else { // 如果不存在全局的文件路径，则不保存
+            dialog.showSaveDialog({
+              title: '请选择要保存的路径',
+              filters: [
+                { name: 'markdown 文件', extensions: ['md'] }
+              ]
+            }, (fpath) => { // 这里的 fpath 是要写入的文件路径
+              if (!fpath) return
+              fs.writeFile(fpath, txt, (err) => {
+                if (err) return console.log('写入文件失败！' + err.message)
+                console.log('保存成功！')
+                // 为全局的 文件路径重新赋值
+                globalPath = fpath
+              })
+            })
+          }
+        }
+      }))
+      menu.append(new MenuItem({
+        label: 'Open',
+        accelerator: 'CmdOrCtrl+O',
+        click: () => {
+          dialog.showOpenDialog({
+            title: '请选择要打开的文件',
+            filters: [
+              { name: 'markdown 文件', extensions: ['md'] }
+            ]
+          }, (fpath) => { // 这里的 fpath 是要写入的文件路径
+            if (!fpath) return
+            fs.readFile(fpath[0], 'utf-8', (err, dataStr) => {
+              if (err) return console.log('打开文件失败！')
+              // 为编辑器重新赋值
+              mditor.value = dataStr
+              // 为全局的 文件路径重新赋值
+              globalPath = fpath[0]
+            })
+          })
+        }
+      }))
+
+      Menu.setApplicationMenu(menu)
+    })
+  </script>
+
+  <script>
+
+  </script>
+</body>
+
+</html>
